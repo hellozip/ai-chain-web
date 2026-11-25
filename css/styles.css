@@ -155,7 +155,8 @@ button {
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 24px;
+  flex-wrap: wrap;
+  gap: 10px 20px;
   min-width: 0;
 }
 
@@ -197,6 +198,7 @@ button {
 .main-nav {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
   background: var(--bg-surface-2);
   padding: 4px;
