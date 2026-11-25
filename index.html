@@ -23,13 +23,17 @@
           </div>
           <div class="brand-text">
             <h1>AI 产业链投研终端</h1>
-            <span class="brand-sub">GLOBAL AI VALUE CHAIN · 30 MEGA-CAP LEADERS</span>
+            <span class="brand-sub">GLOBAL AI VALUE CHAIN · 50 CORE LEADERS</span>
           </div>
         </div>
 
         <nav class="main-nav" role="tablist" aria-label="主导航">
           <button class="nav-tab active" data-view="chain" role="tab" aria-selected="true">
-            <span class="nav-dot dot-cyan"></span>产业链图谱
+            <span class="nav-dot dot-cyan"></span>全景图谱
+          </button>
+          <button class="nav-tab nav-tab-3d" data-view="upstream3d" role="tab" aria-selected="false">
+            <span class="nav-dot dot-3d"></span>上游 3D 链图
+            <span class="nav-badge badge-3d">30</span>
           </button>
           <button class="nav-tab" data-view="financials" role="tab" aria-selected="false">
             <span class="nav-dot dot-violet"></span>财经分析
@@ -99,7 +103,7 @@
           <div class="toolbar-group">
             <span class="toolbar-label">股市筛选</span>
             <div class="chip-group" id="marketFilterGroup">
-              <button class="chip active" data-market="ALL">全部股市 (30)</button>
+              <button class="chip active" data-market="ALL">全部股市 (50)</button>
               <button class="chip" data-market="US">美股 US</button>
               <button class="chip" data-market="CN">A股 CN</button>
               <button class="chip" data-market="HK">港股 HK</button>
@@ -148,10 +152,13 @@
               <div class="chain-col" data-tier="upstream">
                 <div class="tier-header tier-upstream">
                   <div class="tier-title-row">
-                    <span class="tier-tag">UPSTREAM · 01</span>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                      <span class="tier-tag">UPSTREAM · 01 (30家)</span>
+                      <button class="btn-3d-launch" id="jumpUpstream3dBtn">✦ 3D 链图模式 →</button>
+                    </div>
                     <h2>上游 · 算力硬件与基础制造</h2>
                   </div>
-                  <p class="tier-desc">GPU/ASIC 芯片、EUV 光刻设备、先进晶圆代工、HBM 存储与 AI 服务器整机</p>
+                  <p class="tier-desc">IP/EDA材料 → 光刻沉积装备 → 代工封测 → GPU/ASIC → HBM/光模块 → 液冷整机与电力</p>
                   <div class="tier-meta" id="meta-upstream"></div>
                 </div>
                 <div class="node-list" id="nodes-upstream"></div>
@@ -183,6 +190,71 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- VIEW 1.5: ULTRA SCI-FI 3D UPSTREAM CHAIN (30 COMPANIES × 6 STAGES) -->
+      <section class="view-section" id="view-upstream3d">
+        <div class="section-head">
+          <div>
+            <h2>上游算力产业链 · 3D 量子全景拓扑图（30 家代表企业）</h2>
+            <p class="section-sub">六大细分制造环节全景拆解：IP/EDA材料 → 前道核心装备 → 晶圆代工与先进封测 → AI 算力芯片 → HBM 与光互联 → 液冷服务器与算力电力</p>
+          </div>
+          <div class="segmented-control" id="u3dLayoutSwitch">
+            <button class="seg-btn active" data-layout="helix">3D 双螺旋链</button>
+            <button class="seg-btn" data-layout="rings">六维星环链</button>
+            <button class="seg-btn" data-layout="cascade">3D 立体阶梯</button>
+          </div>
+        </div>
+
+        <div class="toolbar compact u3d-toolbar">
+          <div class="chip-group" id="u3dStageFilter">
+            <button class="chip active" data-stage="ALL">全上游 6 环节 (30)</button>
+            <button class="chip" data-stage="u-eda">01 IP·EDA·材料 (5)</button>
+            <button class="chip" data-stage="u-equip">02 核心装备 (5)</button>
+            <button class="chip" data-stage="u-foundry">03 代工·量测·封测 (5)</button>
+            <button class="chip" data-stage="u-compute">04 AI算力芯片 (5)</button>
+            <button class="chip" data-stage="u-memory">05 HBM·光互联 (5)</button>
+            <button class="chip" data-stage="u-infra">06 服务器·液冷·电力 (5)</button>
+          </div>
+          <div class="toolbar-group">
+            <div class="select-wrap">
+              <label for="u3dMarketSelect">市场</label>
+              <select id="u3dMarketSelect">
+                <option value="ALL">全部市场</option>
+                <option value="US">美股 US</option>
+                <option value="CN">A股 CN</option>
+                <option value="TW">台股 TW</option>
+                <option value="JP">日股 JP</option>
+                <option value="KR">韩股 KR</option>
+                <option value="EU">欧股 EU</option>
+              </select>
+            </div>
+            <button class="btn-subtle active" id="u3dAutoRotateBtn">⟳ 自动巡航</button>
+            <button class="btn-subtle" id="u3dResetBtn">复位视角</button>
+          </div>
+        </div>
+
+        <!-- 3D Holographic Viewport -->
+        <div class="u3d-viewport-shell">
+          <div class="u3d-corner tl"></div>
+          <div class="u3d-corner tr"></div>
+          <div class="u3d-corner bl"></div>
+          <div class="u3d-corner br"></div>
+
+          <div class="u3d-stage" id="upstream3dStage">
+            <canvas class="u3d-canvas" id="upstream3dCanvas"></canvas>
+            <div class="u3d-nodes-layer" id="upstream3dNodes"></div>
+          </div>
+
+          <div class="u3d-hud" id="upstream3dHud"></div>
+        </div>
+
+        <!-- 6-Stage Structured Breakdown Grid below 3D Scene -->
+        <div class="u3d-breakdown-head">
+          <h3>上游 6 大核心环节明细卡片（点击任意企业打开 5 维投研面板）</h3>
+          <span class="panel-badge">实时同步股价 & 定期报告</span>
+        </div>
+        <div class="u3d-stage-grid" id="u3dStageBreakdown"></div>
       </section>
 
       <!-- VIEW 2: FINANCIAL ANALYSIS MATRIX -->
@@ -350,7 +422,7 @@
 
     <!-- Footer Disclaimer -->
     <footer class="app-footer">
-      <span>AI 全球产业链投研图谱 · 覆盖美股 / A股 / 港股 / 台股 / 欧股 / 韩股 / 日股上中下游共 30 家核心大市值上市公司</span>
+      <span>AI 全球产业链投研图谱 · 覆盖美股 / A股 / 港股 / 台股 / 欧股 / 韩股 / 日股共 50 家核心代表上市公司（上游 30 家 3D 细分链 + 中游 10 家 + 下游 10 家）</span>
       <span>数据为投研参考快照（含 2025FY / 2026H1 / 2026Q3 财报口径），不构成投资建议</span>
     </footer>
   </div>
@@ -423,11 +495,14 @@
 
   <!-- Scripts (standard script order works both via file:// and http://) -->
   <script src="js/data-upstream.js"></script>
+  <script src="js/data-upstream-ext.js"></script>
+  <script src="js/data-upstream-ext2.js"></script>
   <script src="js/data-midstream.js"></script>
   <script src="js/data-downstream.js"></script>
   <script src="js/data-intel.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/chain-graph.js"></script>
+  <script src="js/upstream-3d.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

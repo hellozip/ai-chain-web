@@ -26,48 +26,73 @@ const MIME_TYPES = {
   ".ico": "image/x-icon"
 };
 
-/* ==================== 30 Global AI Supply-Chain Tickers ==================== */
+/* ==================== 50 Global AI Supply-Chain Tickers (30 Upstream + 10 Mid + 10 Down) ==================== */
 const TICKER_MAP = [
-  // Upstream (10)
-  { id: "nvda", yahoo: "NVDA", market: "US", keywords: ["nvidia", "nvda", "英伟达", "blackwell", "rubin", "cuda"] },
-  { id: "tsmc", yahoo: "2330.TW", market: "TW", keywords: ["tsmc", "2330", "台积电", "cowos", "台湾积体电路"] },
-  { id: "avgo", yahoo: "AVGO", market: "US", keywords: ["broadcom", "avgo", "博通", "asic"] },
-  { id: "asml", yahoo: "ASML.AS", market: "EU", keywords: ["asml", "阿斯麦", "光刻机", "euv"] },
-  { id: "samsung", yahoo: "005930.KS", market: "KR", keywords: ["samsung", "三星", "005930"] },
-  { id: "amd", yahoo: "AMD", market: "US", keywords: ["amd", "超威", "mi350", "mi355", "instinct"] },
-  { id: "skhynix", yahoo: "000660.KS", market: "KR", keywords: ["sk hynix", "hynix", "海力士", "hbm4", "hbm3e", "000660"] },
-  { id: "tel", yahoo: "8035.T", market: "JP", keywords: ["tokyo electron", "东京电子", "8035"] },
-  { id: "fii", yahoo: "601138.SS", tencent: "sh601138", market: "CN", keywords: ["工业富联", "601138", "foxconn industrial", "液冷机柜"] },
-  { id: "smic", yahoo: "688981.SS", tencent: "sh688981", market: "CN", keywords: ["中芯国际", "smic", "688981", "0981"] },
+  // Upstream (30 companies across 6 sub-stages)
+  { id: "arm", yahoo: "ARM", market: "US", tier: "upstream", keywords: ["arm holdings", "armv9", "安谋", "grace cpu"] },
+  { id: "snps", yahoo: "SNPS", market: "US", tier: "upstream", keywords: ["synopsys", "snps", "新思科技", "eda"] },
+  { id: "cdns", yahoo: "CDNS", market: "US", tier: "upstream", keywords: ["cadence", "cdns", "楷登电子"] },
+  { id: "shinetsu", yahoo: "4063.T", market: "JP", tier: "upstream", keywords: ["shin-etsu", "信越化学", "4063", "硅片"] },
+  { id: "ajinomoto", yahoo: "2802.T", market: "JP", tier: "upstream", keywords: ["ajinomoto", "味之素", "abf载板", "2802"] },
+
+  { id: "asml", yahoo: "ASML.AS", market: "EU", tier: "upstream", keywords: ["asml", "阿斯麦", "光刻机", "euv"] },
+  { id: "amat", yahoo: "AMAT", market: "US", tier: "upstream", keywords: ["applied materials", "amat", "应用材料"] },
+  { id: "lrcx", yahoo: "LRCX", market: "US", tier: "upstream", keywords: ["lam research", "lrcx", "泛林"] },
+  { id: "tel", yahoo: "8035.T", market: "JP", tier: "upstream", keywords: ["tokyo electron", "东京电子", "8035"] },
+  { id: "naura", yahoo: "002371.SZ", tencent: "sz002371", market: "CN", tier: "upstream", keywords: ["北方华创", "naura", "002371"] },
+
+  { id: "tsmc", yahoo: "2330.TW", market: "TW", tier: "upstream", keywords: ["tsmc", "2330", "台积电", "cowos", "台湾积体电路"] },
+  { id: "smic", yahoo: "688981.SS", tencent: "sh688981", market: "CN", tier: "upstream", keywords: ["中芯国际", "smic", "688981", "0981"] },
+  { id: "klac", yahoo: "KLAC", market: "US", tier: "upstream", keywords: ["kla corp", "klac", "科磊"] },
+  { id: "ase", yahoo: "3711.TW", market: "TW", tier: "upstream", keywords: ["ase technology", "日月光", "3711"] },
+  { id: "jcet", yahoo: "600584.SS", tencent: "sh600584", market: "CN", tier: "upstream", keywords: ["长电科技", "jcet", "600584"] },
+
+  { id: "nvda", yahoo: "NVDA", market: "US", tier: "upstream", keywords: ["nvidia", "nvda", "英伟达", "blackwell", "rubin", "cuda"] },
+  { id: "avgo", yahoo: "AVGO", market: "US", tier: "upstream", keywords: ["broadcom", "avgo", "博通", "asic"] },
+  { id: "amd", yahoo: "AMD", market: "US", tier: "upstream", keywords: ["amd", "超威", "mi350", "mi355", "instinct"] },
+  { id: "mrvl", yahoo: "MRVL", market: "US", tier: "upstream", keywords: ["marvell", "mrvl", "迈威尔"] },
+  { id: "hygon", yahoo: "688041.SS", tencent: "sh688041", market: "CN", tier: "upstream", keywords: ["海光信息", "hygon", "688041", "深算"] },
+
+  { id: "samsung", yahoo: "005930.KS", market: "KR", tier: "upstream", keywords: ["samsung", "三星", "005930"] },
+  { id: "skhynix", yahoo: "000660.KS", market: "KR", tier: "upstream", keywords: ["sk hynix", "hynix", "海力士", "hbm4", "hbm3e", "000660"] },
+  { id: "mu", yahoo: "MU", market: "US", tier: "upstream", keywords: ["micron", "美光", "hbm3e"] },
+  { id: "anet", yahoo: "ANET", market: "US", tier: "upstream", keywords: ["arista", "anet", "阿里斯塔", "800g交换机"] },
+  { id: "innolight", yahoo: "300308.SZ", tencent: "sz300308", market: "CN", tier: "upstream", keywords: ["中际旭创", "innolight", "300308", "光模块", "1.6t"] },
+
+  { id: "fii", yahoo: "601138.SS", tencent: "sh601138", market: "CN", tier: "upstream", keywords: ["工业富联", "601138", "foxconn industrial", "液冷机柜"] },
+  { id: "vrt", yahoo: "VRT", market: "US", tier: "upstream", keywords: ["vertiv", "vrt", "维谛", "液冷cdu"] },
+  { id: "dell", yahoo: "DELL", market: "US", tier: "upstream", keywords: ["dell", "戴尔", "ai server"] },
+  { id: "quanta", yahoo: "2382.TW", market: "TW", tier: "upstream", keywords: ["quanta", "广达", "2382"] },
+  { id: "etn", yahoo: "ETN", market: "US", tier: "upstream", keywords: ["eaton", "伊顿", "数据中心电力", "变压器"] },
 
   // Midstream (10)
-  { id: "msft", yahoo: "MSFT", market: "US", keywords: ["microsoft", "msft", "微软", "azure", "copilot", "openai"] },
-  { id: "googl", yahoo: "GOOGL", market: "US", keywords: ["google", "alphabet", "googl", "谷歌", "gemini", "tpu"] },
-  { id: "amzn", yahoo: "AMZN", market: "US", keywords: ["amazon", "amzn", "亚马逊", "aws", "bedrock", "trainium"] },
-  { id: "meta", yahoo: "META", market: "US", keywords: ["meta", "llama", "扎克伯格"] },
-  { id: "orcl", yahoo: "ORCL", market: "US", keywords: ["oracle", "orcl", "甲骨文", "stargate", "oci"] },
-  { id: "tencent", yahoo: "0700.HK", tencent: "hk00700", market: "HK", keywords: ["tencent", "腾讯", "混元", "0700", "微信"] },
-  { id: "cmcc", yahoo: "600941.SS", tencent: "sh600941", market: "CN", keywords: ["中国移动", "china mobile", "600941", "九天大模型", "智算中心"] },
-  { id: "sap", yahoo: "SAP.DE", market: "EU", keywords: ["sap", "思爱普", "joule"] },
-  { id: "baba", yahoo: "9988.HK", tencent: "hk09988", market: "HK", keywords: ["alibaba", "阿里", "阿里云", "通义千问", "qwen", "9988", "baba"] },
-  { id: "pltr", yahoo: "PLTR", market: "US", keywords: ["palantir", "pltr", "aip", "ontology"] },
+  { id: "msft", yahoo: "MSFT", market: "US", tier: "midstream", keywords: ["microsoft", "msft", "微软", "azure", "copilot", "openai"] },
+  { id: "googl", yahoo: "GOOGL", market: "US", tier: "midstream", keywords: ["google", "alphabet", "googl", "谷歌", "gemini", "tpu"] },
+  { id: "amzn", yahoo: "AMZN", market: "US", tier: "midstream", keywords: ["amazon", "amzn", "亚马逊", "aws", "bedrock", "trainium"] },
+  { id: "meta", yahoo: "META", market: "US", tier: "midstream", keywords: ["meta", "llama", "扎克伯格"] },
+  { id: "orcl", yahoo: "ORCL", market: "US", tier: "midstream", keywords: ["oracle", "orcl", "甲骨文", "stargate", "oci"] },
+  { id: "tencent", yahoo: "0700.HK", tencent: "hk00700", market: "HK", tier: "midstream", keywords: ["tencent", "腾讯", "混元", "0700", "微信"] },
+  { id: "cmcc", yahoo: "600941.SS", tencent: "sh600941", market: "CN", tier: "midstream", keywords: ["中国移动", "china mobile", "600941", "九天大模型", "智算中心"] },
+  { id: "sap", yahoo: "SAP.DE", market: "EU", tier: "midstream", keywords: ["sap", "思爱普", "joule"] },
+  { id: "baba", yahoo: "9988.HK", tencent: "hk09988", market: "HK", tier: "midstream", keywords: ["alibaba", "阿里", "阿里云", "通义千问", "qwen", "9988", "baba"] },
+  { id: "pltr", yahoo: "PLTR", market: "US", tier: "midstream", keywords: ["palantir", "pltr", "aip", "ontology"] },
 
   // Downstream (10)
-  { id: "aapl", yahoo: "AAPL", market: "US", keywords: ["apple", "aapl", "苹果", "iphone", "apple intelligence"] },
-  { id: "tsla", yahoo: "TSLA", market: "US", keywords: ["tesla", "tsla", "特斯拉", "fsd", "optimus", "robotaxi"] },
-  { id: "crm", yahoo: "CRM", market: "US", keywords: ["salesforce", "crm", "赛富时", "agentforce"] },
-  { id: "now", yahoo: "NOW", market: "US", keywords: ["servicenow", "now assist"] },
-  { id: "adbe", yahoo: "ADBE", market: "US", keywords: ["adobe", "adbe", "firefly"] },
-  { id: "siemens", yahoo: "SIE.DE", market: "EU", keywords: ["siemens", "西门子", "数字孪生", "工业ai"] },
-  { id: "byd", yahoo: "002594.SZ", tencent: "sz002594", market: "CN", keywords: ["byd", "比亚迪", "天神之眼", "002594"] },
-  { id: "meituan", yahoo: "3690.HK", tencent: "hk03690", market: "HK", keywords: ["meituan", "美团", "3690", "低空无人机"] },
-  { id: "sony", yahoo: "6758.T", market: "JP", keywords: ["sony", "索尼", "6758", "图像传感器"] },
-  { id: "xiaomi", yahoo: "1810.HK", tencent: "hk01810", market: "HK", keywords: ["xiaomi", "小米", "1810", "雷军", "人车家"] }
+  { id: "aapl", yahoo: "AAPL", market: "US", tier: "downstream", keywords: ["apple", "aapl", "苹果", "iphone", "apple intelligence"] },
+  { id: "tsla", yahoo: "TSLA", market: "US", tier: "downstream", keywords: ["tesla", "tsla", "特斯拉", "fsd", "optimus", "robotaxi"] },
+  { id: "crm", yahoo: "CRM", market: "US", tier: "downstream", keywords: ["salesforce", "crm", "赛富时", "agentforce"] },
+  { id: "now", yahoo: "NOW", market: "US", tier: "downstream", keywords: ["servicenow", "now assist"] },
+  { id: "adbe", yahoo: "ADBE", market: "US", tier: "downstream", keywords: ["adobe", "adbe", "firefly"] },
+  { id: "siemens", yahoo: "SIE.DE", market: "EU", tier: "downstream", keywords: ["siemens", "西门子", "数字孪生", "工业ai"] },
+  { id: "byd", yahoo: "002594.SZ", tencent: "sz002594", market: "CN", tier: "downstream", keywords: ["byd", "比亚迪", "天神之眼", "002594"] },
+  { id: "meituan", yahoo: "3690.HK", tencent: "hk03690", market: "HK", tier: "downstream", keywords: ["meituan", "美团", "3690", "低空无人机"] },
+  { id: "sony", yahoo: "6758.T", market: "JP", tier: "downstream", keywords: ["sony", "索尼", "6758", "图像传感器"] },
+  { id: "xiaomi", yahoo: "1810.HK", tencent: "hk01810", market: "HK", tier: "downstream", keywords: ["xiaomi", "小米", "1810", "雷军", "人车家"] }
 ];
 
-const UPSTREAM_IDS = new Set(TICKER_MAP.slice(0, 10).map((t) => t.id));
-const MIDSTREAM_IDS = new Set(TICKER_MAP.slice(10, 20).map((t) => t.id));
-const DOWNSTREAM_IDS = new Set(TICKER_MAP.slice(20, 30).map((t) => t.id));
+const UPSTREAM_IDS = new Set(TICKER_MAP.filter((t) => t.tier === "upstream").map((t) => t.id));
+const MIDSTREAM_IDS = new Set(TICKER_MAP.filter((t) => t.tier === "midstream").map((t) => t.id));
+const DOWNSTREAM_IDS = new Set(TICKER_MAP.filter((t) => t.tier === "downstream").map((t) => t.id));
 
 /* ==================== Caches ==================== */
 const quotesCache = {
@@ -201,8 +226,8 @@ async function refreshQuotes(force = false) {
     const nextData = { ...quotesCache.data };
     const missingForFallback = [];
 
-    // Batch fetch 6 symbols concurrently to avoid rate-limiting
-    const batchSize = 6;
+    // Batch fetch 10 symbols concurrently for fast 50-ticker refresh
+    const batchSize = 10;
     for (let i = 0; i < TICKER_MAP.length; i += batchSize) {
       const batch = TICKER_MAP.slice(i, i + batchSize);
       const results = await Promise.all(batch.map((item) => fetchYahooQuote(item)));

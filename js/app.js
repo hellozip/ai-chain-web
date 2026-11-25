@@ -96,8 +96,11 @@
         window.AIChainLive.online = true;
         const t = new Date(data.updatedAt || Date.now());
         const hhmmss = t.toTimeString().slice(0, 8);
-        updateLiveStatusPill("online", `实时同步 · ${data.count || 0}/30 · ${hhmmss}`);
+        const totalCos = window.AIChainData.companies.length;
+        updateLiveStatusPill("online", `实时同步 · ${data.count || 0}/${totalCos} · ${hhmmss}`);
         window.AIChainGraph.render();
+        if (window.AIUpstream3D) window.AIUpstream3D.refreshNodeContents();
+        if (appState.currentView === "upstream3d") renderUpstreamBreakdown();
         if (appState.currentView === "financials") renderFinancialsView();
         if (appState.activeCompanyId) {
           const comp = getCompanyById(appState.activeCompanyId);
@@ -211,8 +214,16 @@
       sec.classList.toggle("active", sec.id === `view-${viewName}`);
     });
 
+    if (viewName !== "upstream3d" && window.AIUpstream3D) {
+      window.AIUpstream3D.stop();
+    }
     if (viewName === "chain") {
       requestAnimationFrame(() => window.AIChainGraph.drawEdges());
+    } else if (viewName === "upstream3d") {
+      renderUpstreamBreakdown();
+      if (window.AIUpstream3D) {
+        requestAnimationFrame(() => window.AIUpstream3D.start());
+      }
     } else if (viewName === "financials") {
       renderFinancialsView();
     } else if (viewName === "policy") {
@@ -240,6 +251,7 @@
       appState.searchQuery = val;
       clearBtn.hidden = !val;
       window.AIChainGraph.setState({ searchQuery: val });
+      if (window.AIUpstream3D) window.AIUpstream3D.setSearchQuery(val);
       if (appState.currentView === "financials") renderFinancialsView();
       if (appState.currentView === "policy") renderPolicyView();
       if (appState.currentView === "research") renderResearchView();
@@ -457,8 +469,18 @@
         });
       });
     } else if (tab === "products") {
-      const upLinks = window.AIChainData.links.filter((l) => l.to === c.id);
-      const downLinks = window.AIChainData.links.filter((l) => l.from === c.id);
+      const allLinks = [...(window.AIChainData.links || []), ...(window.AIChainData.upstream3DLinks || [])];
+      const dedupeLinks = (arr) => {
+        const seen = new Set();
+        return arr.filter((l) => {
+          const k = `${l.from}->${l.to}`;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+      };
+      const upLinks = dedupeLinks(allLinks.filter((l) => l.to === c.id));
+      const downLinks = dedupeLinks(allLinks.filter((l) => l.from === c.id));
 
       body.innerHTML = `
         <div class="drawer-section">
@@ -1025,6 +1047,93 @@
     });
   }
 
+  /* ==================== VIEW 1.5: 3D UPSTREAM CHAIN ==================== */
+  function bindUpstream3DControls() {
+    const jumpBtn = document.getElementById("jumpUpstream3dBtn");
+    if (jumpBtn) {
+      jumpBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        switchView("upstream3d");
+      });
+    }
+
+    document.querySelectorAll("#u3dLayoutSwitch .seg-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#u3dLayoutSwitch .seg-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        if (window.AIUpstream3D) window.AIUpstream3D.setLayout(btn.dataset.layout);
+      });
+    });
+
+    document.querySelectorAll("#u3dStageFilter .chip").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#u3dStageFilter .chip").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        if (window.AIUpstream3D) window.AIUpstream3D.focusStage(btn.dataset.stage);
+      });
+    });
+
+    const mktSel = document.getElementById("u3dMarketSelect");
+    if (mktSel) {
+      mktSel.addEventListener("change", (e) => {
+        if (window.AIUpstream3D) window.AIUpstream3D.setMarketFilter(e.target.value);
+      });
+    }
+
+    const autoBtn = document.getElementById("u3dAutoRotateBtn");
+    if (autoBtn) {
+      autoBtn.addEventListener("click", () => {
+        if (window.AIUpstream3D) window.AIUpstream3D.toggleAutoRotate();
+      });
+    }
+
+    const resetBtn = document.getElementById("u3dResetBtn");
+    if (resetBtn) {
+      resetBtn.addEventListener("click", () => {
+        if (window.AIUpstream3D) window.AIUpstream3D.resetCamera();
+      });
+    }
+  }
+
+  function renderUpstreamBreakdown() {
+    const grid = document.getElementById("u3dStageBreakdown");
+    if (!grid) return;
+    const stages = window.AIChainData.upstreamStages || [];
+    const quotes = (window.AIChainLive && window.AIChainLive.quotes) || {};
+
+    grid.innerHTML = stages.map((st) => {
+      const list = window.AIChainData.companies
+        .filter((c) => c.tier === "upstream" && c.upstreamStage === st.id)
+        .sort((a, b) => b.marketCap - a.marketCap);
+
+      return `
+        <div class="u3d-stage-card" style="--stage-color:${st.color};">
+          <span class="tier-tag" style="color:${st.color};">${st.code}</span>
+          <h4>${escapeHtml(st.name)}</h4>
+          <p>${escapeHtml(st.desc)}</p>
+          <div class="u3d-mini-list">
+            ${list.map((c) => {
+              const lq = quotes[c.id];
+              const rightMetric = lq
+                ? `<span style="font-family:var(--font-mono);font-size:11.5px;"><strong>${formatLivePrice(lq)}</strong> <span class="${lq.changePercent >= 0 ? "val-up" : "val-down"}">${lq.changePercent > 0 ? "+" : ""}${lq.changePercent.toFixed(2)}%</span></span>`
+                : `<span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-secondary);">${formatCap(c.marketCap)}</span>`;
+              return `
+                <div class="u3d-mini-row" data-open-company="${c.id}" data-open-tab="financials">
+                  <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                    <span class="market-badge mkt-${c.market}" style="font-size:9.5px;padding:1px 5px;">${c.marketLabel}</span>
+                    <strong style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.name.split(" ")[0])}</strong>
+                    <span class="node-ticker">${escapeHtml(c.ticker)}</span>
+                  </div>
+                  ${rightMetric}
+                </div>`;
+            }).join("")}
+          </div>
+        </div>`;
+    }).join("");
+
+    bindCompanyJumpButtons(grid);
+  }
+
   /* ==================== Bootstrap ==================== */
   document.addEventListener("DOMContentLoaded", () => {
     initTheme();
@@ -1032,6 +1141,7 @@
     renderTicker();
     bindNavigation();
     bindChainControls();
+    bindUpstream3DControls();
     bindDrawerEvents();
     bindFinancialControls();
     bindPolicyControls();
@@ -1042,6 +1152,12 @@
       onSelectCompany: (id) => openCompanyDrawer(id, "financials")
     });
     window.AIChainGraph.render();
+
+    if (window.AIUpstream3D) {
+      window.AIUpstream3D.init({
+        onSelectCompany: (id) => openCompanyDrawer(id, "financials")
+      });
+    }
 
     // Live sync controls & auto-polling
     const liveBtn = document.getElementById("liveSyncBtn");
