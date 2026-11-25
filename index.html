@@ -48,11 +48,6 @@
       </div>
 
       <div class="topbar-right">
-        <button class="live-pill" id="liveSyncBtn" title="点击立即刷新实时股价与全网资讯">
-          <span class="live-dot" id="liveSyncDot"></span>
-          <span id="liveSyncText">连接实时源...</span>
-        </button>
-
         <div class="search-box">
           <svg class="search-icon" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8">
             <circle cx="9" cy="9" r="6"></circle>
@@ -85,9 +80,13 @@
     <div class="ticker-strip">
       <div class="ticker-label">
         <span class="pulse-dot"></span>
-        <span>每日速递 · 2026-11-24</span>
+        <span id="tickerDateLabel">每日速递</span>
       </div>
       <div class="ticker-scroll" id="tickerContainer"></div>
+      <button class="live-pill" id="liveSyncBtn" title="点击立即刷新实时股价与全网资讯">
+        <span class="live-dot" id="liveSyncDot"></span>
+        <span id="liveSyncText">连接实时源...</span>
+      </button>
       <button class="ticker-more" id="tickerMoreBtn">全部资讯 →</button>
     </div>
 

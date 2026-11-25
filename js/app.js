@@ -259,6 +259,10 @@
     const container = document.getElementById("tickerContainer");
     if (!container) return;
     const latest = appState.newsItems.slice(0, 6);
+    const dateLabel = document.getElementById("tickerDateLabel");
+    if (dateLabel && latest.length && latest[0].date) {
+      dateLabel.textContent = `每日速递 · ${latest[0].date}`;
+    }
     container.innerHTML = latest.map((n) => `
       <span class="ticker-item" data-news-id="${escapeHtml(n.id)}" title="${escapeHtml(n.summary)}">
         <span class="ticker-tag ${escapeHtml(n.sentiment)}">${SENTIMENT_LABELS[n.sentiment] || "资讯"}</span>
