@@ -201,8 +201,133 @@ window.AICharts = (function () {
     }
   }
 
+  /**
+   * Renders a P4-style full-width continuous reporting date financial chart
+   * X-axis dates: 2023-12-31, 2024-03-31, ..., 2026-09-30
+   * metricMode: 'dual' | 'ni' | 'nonGaap' | 'ocf'
+   */
+  function renderP4FinancialTrendChart(container, series, metricMode, unitLabel) {
+    if (!container || !series || !series.length) return;
+    const width = 1080;
+    const height = 290;
+    const pad = { top: 38, right: 26, bottom: 44, left: 64 };
+    const chartW = width - pad.left - pad.right;
+    const chartH = height - pad.top - pad.bottom;
+
+    const isDual = metricMode === "dual" || metricMode === "ocf";
+    const getPrimary = (d) => {
+      if (metricMode === "ni") return Number(d.ni) || 0;
+      if (metricMode === "nonGaap") return Number(d.nonGaap) || 0;
+      if (metricMode === "ocf") return Number(d.ocf) || 0;
+      return Number(d.rev) || 0;
+    };
+    const getSecondary = (d) => Number(d.ni) || 0;
+
+    const allVals = series.flatMap((d) => (isDual ? [getPrimary(d), getSecondary(d)] : [getPrimary(d)]));
+    const maxVal = Math.max(...allVals, 1) * 1.16;
+    const minVal = Math.min(0, ...allVals);
+    const range = maxVal - minVal || 1;
+    const yScale = (val) => pad.top + ((maxVal - val) / range) * chartH;
+    const zeroY = yScale(0);
+
+    let gridSvg = "";
+    const ticks = 6;
+    for (let i = 0; i <= ticks; i++) {
+      const val = minVal + (range * i) / ticks;
+      const y = yScale(val);
+      const labelTxt = Math.abs(val) >= 100 ? Math.round(val).toLocaleString() : val.toFixed(1);
+      gridSvg += `
+        <line x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}"
+              stroke="var(--border-subtle)" stroke-dasharray="4 3" />
+        <text x="${pad.left - 10}" y="${y + 4}" text-anchor="end"
+              fill="var(--text-muted)" font-size="11" font-family="var(--font-mono)">${labelTxt}</text>`;
+    }
+
+    const groupW = chartW / series.length;
+    const singleBarW = Math.min(36, groupW * 0.44);
+    const dualBarW = Math.min(24, groupW * 0.34);
+
+    const primaryColor = metricMode === "ni" ? "#dc2626"
+      : metricMode === "nonGaap" ? "#f59e0b"
+      : metricMode === "ocf" ? "#10b981"
+      : "#0ea5e9";
+    const secondaryColor = metricMode === "ocf" ? "#8b5cf6" : "#dc2626";
+
+    const primaryLabel = metricMode === "ni" ? "归属净利润"
+      : metricMode === "nonGaap" ? "扣非净利润"
+      : metricMode === "ocf" ? "经营现金流净额"
+      : "营业收入";
+    const secondaryLabel = "归属净利润";
+
+    let barsSvg = "";
+    series.forEach((d, idx) => {
+      const cx = pad.left + groupW * idx + groupW / 2;
+      const v1 = getPrimary(d);
+      const y1 = v1 >= 0 ? yScale(v1) : zeroY;
+      const h1 = Math.max(2, Math.abs(yScale(v1) - zeroY));
+
+      if (isDual) {
+        const v2 = getSecondary(d);
+        const y2 = v2 >= 0 ? yScale(v2) : zeroY;
+        const h2 = Math.max(2, Math.abs(yScale(v2) - zeroY));
+
+        barsSvg += `
+          <g>
+            <rect x="${cx - dualBarW - 2}" y="${y1}" width="${dualBarW}" height="${h1}" rx="3" fill="${primaryColor}" opacity="0.92">
+              <title>${escapeHtml(d.date)} ${primaryLabel}: ${v1} ${unitLabel}</title>
+            </rect>
+            <text x="${cx - dualBarW / 2 - 2}" y="${v1 >= 0 ? y1 - 5 : y1 + h1 + 11}" text-anchor="middle"
+                  fill="${primaryColor}" font-size="9.5" font-family="var(--font-mono)" font-weight="600">${v1}</text>
+
+            <rect x="${cx + 2}" y="${y2}" width="${dualBarW}" height="${h2}" rx="3" fill="${secondaryColor}" opacity="0.92">
+              <title>${escapeHtml(d.date)} ${secondaryLabel}: ${v2} ${unitLabel}</title>
+            </rect>
+            <text x="${cx + dualBarW / 2 + 2}" y="${v2 >= 0 ? y2 - 5 : y2 + h2 + 11}" text-anchor="middle"
+                  fill="${secondaryColor}" font-size="9.5" font-family="var(--font-mono)" font-weight="600">${v2}</text>
+
+            <text x="${cx}" y="${height - 14}" text-anchor="middle"
+                  fill="var(--text-secondary)" font-size="10.5" font-family="var(--font-mono)" font-weight="600">
+              ${escapeHtml(d.date)}
+            </text>
+          </g>`;
+      } else {
+        barsSvg += `
+          <g>
+            <rect x="${cx - singleBarW / 2}" y="${y1}" width="${singleBarW}" height="${h1}" rx="3" fill="${primaryColor}" opacity="0.94">
+              <title>${escapeHtml(d.date)} ${primaryLabel}: ${v1} ${unitLabel}</title>
+            </rect>
+            <text x="${cx}" y="${v1 >= 0 ? y1 - 6 : y1 + h1 + 12}" text-anchor="middle"
+                  fill="${primaryColor}" font-size="10.5" font-family="var(--font-mono)" font-weight="700">${v1}</text>
+            <text x="${cx}" y="${height - 14}" text-anchor="middle"
+                  fill="var(--text-secondary)" font-size="10.5" font-family="var(--font-mono)" font-weight="600">
+              ${escapeHtml(d.date)}
+            </text>
+          </g>`;
+      }
+    });
+
+    const legendSvg = isDual
+      ? `<rect width="11" height="11" rx="2" fill="${primaryColor}"></rect>
+         <text x="16" y="10" fill="var(--text-secondary)" font-size="11.5" font-weight="600">${primaryLabel} (${escapeHtml(unitLabel)})</text>
+         <rect x="195" width="11" height="11" rx="2" fill="${secondaryColor}"></rect>
+         <text x="211" y="10" fill="var(--text-secondary)" font-size="11.5" font-weight="600">${secondaryLabel} (${escapeHtml(unitLabel)})</text>`
+      : `<rect width="11" height="11" rx="2" fill="${primaryColor}"></rect>
+         <text x="16" y="10" fill="var(--text-secondary)" font-size="11.5" font-weight="600">${primaryLabel} (${escapeHtml(unitLabel)})</text>`;
+
+    container.innerHTML = `
+      <svg class="svg-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${primaryLabel}报告期趋势图">
+        ${gridSvg}
+        <line x1="${pad.left}" y1="${zeroY}" x2="${width - pad.right}" y2="${zeroY}" stroke="var(--border-strong)" stroke-width="1.2" />
+        ${barsSvg}
+        <g transform="translate(${pad.left}, 10)">
+          ${legendSvg}
+        </g>
+      </svg>`;
+  }
+
   return {
     renderCompanyTrendChart,
+    renderP4FinancialTrendChart,
     renderTierComparisonChart,
     renderTopGrowthChart
   };

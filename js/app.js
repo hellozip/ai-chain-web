@@ -32,6 +32,8 @@
     activeCompanyId: null,
     drawerTab: "financials",
     drawerPeriod: "quarterly",
+    p4SeriesMode: "cumulative12", // 'cumulative12' | 'singleQ12' | 'annual5'
+    p4MetricMode: "dual",         // 'dual' | 'ni' | 'nonGaap' | 'ocf'
 
     // Financials matrix state
     finPeriod: "quarterly",
@@ -367,32 +369,36 @@
     }
     const header = document.getElementById("drawerHeader");
     header.innerHTML = `
-      <div class="drawer-top-row">
-        <div class="drawer-title-group">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span class="tier-pill ${c.tier}">${TIER_LABELS[c.tier]}</span>
-            <span class="market-badge mkt-${c.market}">${c.marketLabel} · ${escapeHtml(c.exchange)}</span>
-            <span class="mini-pill">${escapeHtml(c.subSegment)}</span>
+      <div class="drawer-header-inner">
+        <div class="drawer-top-row">
+          <div class="drawer-title-group">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <button class="btn-subtle" id="backFromPageBtn" style="padding:4px 10px;font-weight:700;">← 返回产业链视图</button>
+              <span class="tier-pill ${c.tier}">${TIER_LABELS[c.tier]}</span>
+              <span class="market-badge mkt-${c.market}">${c.marketLabel} · ${escapeHtml(c.exchange)}</span>
+              <span class="mini-pill">${escapeHtml(c.subSegment)}</span>
+            </div>
+            <h2>
+              ${escapeHtml(c.name)}
+              <span class="node-ticker" style="font-size:15px;">${escapeHtml(c.ticker)}</span>
+            </h2>
+            <div style="font-size:13px;color:var(--text-secondary);">${escapeHtml(c.role)}</div>
           </div>
-          <h2>
-            ${escapeHtml(c.name)}
-            <span class="node-ticker" style="font-size:14px;">${escapeHtml(c.ticker)}</span>
-          </h2>
-          <div style="font-size:12.5px;color:var(--text-secondary);">${escapeHtml(c.role)}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button class="btn-subtle" id="locateOnChainBtn" title="在产业链图谱中聚焦该公司">链式图定位</button>
+            <button class="drawer-close" id="closeDrawerBtn" aria-label="关闭">&times;</button>
+          </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <button class="btn-subtle" id="locateOnChainBtn" title="在产业链图谱中聚焦该公司">链式图定位</button>
-          <button class="drawer-close" id="closeDrawerBtn" aria-label="关闭">&times;</button>
+        <div class="drawer-kpi-row">
+          ${liveKpiHtml}
+          <div class="dkpi"><span>总市值 / PE</span><strong>${formatCap(c.marketCap)} · ${c.pe}x</strong></div>
+          <div class="dkpi"><span>最新季报营收同比</span><strong class="${q.revYoY >= 0 ? "val-up" : "val-down"}">${q.revYoY >= 0 ? "+" : ""}${q.revYoY.toFixed(1)}%</strong></div>
+          <div class="dkpi"><span>毛利率 / 一致评级</span><strong style="color:var(--positive);">${q.grossMargin.toFixed(1)}% · ${escapeHtml(c.research.consensus)}</strong></div>
         </div>
-      </div>
-      <div class="drawer-kpi-row">
-        ${liveKpiHtml}
-        <div class="dkpi"><span>总市值 / PE</span><strong>${formatCap(c.marketCap)} · ${c.pe}x</strong></div>
-        <div class="dkpi"><span>最新季报营收同比</span><strong class="${q.revYoY >= 0 ? "val-up" : "val-down"}">${q.revYoY >= 0 ? "+" : ""}${q.revYoY.toFixed(1)}%</strong></div>
-        <div class="dkpi"><span>毛利率 / 一致评级</span><strong style="color:var(--positive);">${q.grossMargin.toFixed(1)}% · ${escapeHtml(c.research.consensus)}</strong></div>
       </div>`;
 
     document.getElementById("closeDrawerBtn").addEventListener("click", closeCompanyDrawer);
+    document.getElementById("backFromPageBtn").addEventListener("click", closeCompanyDrawer);
     document.getElementById("locateOnChainBtn").addEventListener("click", () => {
       closeCompanyDrawer();
       switchView("chain");
@@ -420,52 +426,402 @@
     if (tab === "financials") {
       const pKey = appState.drawerPeriod;
       const fin = c.financials[pKey];
+      const prof = window.AIFinancialEngine.analyzeCompany(c, pKey);
+      const inc = prof.income;
+      const bal = prof.balance;
+      const cf = prof.cashflow;
+      const turn = prof.turnover;
+      const ret = prof.returns;
+      const sum = prof.summary;
       const unitLabel = "亿美元口径";
+      const sMode = appState.p4SeriesMode;
+      const mMode = appState.p4MetricMode;
+
       body.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-          <div class="segmented-control" id="drawerPeriodSwitch">
-            <button class="seg-btn ${pKey === "quarterly" ? "active" : ""}" data-period="quarterly">季报 (Q)</button>
-            <button class="seg-btn ${pKey === "semiannual" ? "active" : ""}" data-period="semiannual">半年报 (H1)</button>
-            <button class="seg-btn ${pKey === "annual" ? "active" : ""}" data-period="annual">年报 (FY)</button>
-          </div>
-          <span class="panel-badge">报告期：${escapeHtml(fin.period)}</span>
-        </div>
+        <div class="drawer-body-inner">
+          <!-- ==================== 模块 1: 年度/报告期营收与利润趋势图 (P4横坐标风格) ==================== -->
+          <section class="fin-module-block">
+            <div class="fin-module-head">
+              <div class="fin-module-title">
+                <span class="fin-module-num">01</span>
+                <h3>年度 / 报告期营收与利润趋势图</h3>
+              </div>
+              <div class="fin-chart-controls">
+                <div class="segmented-control" id="p4SeriesSwitch">
+                  <button class="seg-btn ${sMode === "cumulative12" ? "active" : ""}" data-smode="cumulative12">报告期累计 (12期)</button>
+                  <button class="seg-btn ${sMode === "singleQ12" ? "active" : ""}" data-smode="singleQ12">单季趋势 (12期)</button>
+                  <button class="seg-btn ${sMode === "annual5" ? "active" : ""}" data-smode="annual5">年度对比</button>
+                </div>
+                <div class="segmented-control" id="p4MetricSwitch">
+                  <button class="seg-btn ${mMode === "dual" ? "active" : ""}" data-mmode="dual">营收 + 归母净利</button>
+                  <button class="seg-btn ${mMode === "ni" ? "active" : ""}" data-mmode="ni">归属净利润</button>
+                  <button class="seg-btn ${mMode === "nonGaap" ? "active" : ""}" data-mmode="nonGaap">扣非净利润</button>
+                  <button class="seg-btn ${mMode === "ocf" ? "active" : ""}" data-mmode="ocf">经营现金流 vs 净利</button>
+                </div>
+              </div>
+            </div>
 
-        <div class="drawer-section">
-          <h4>核心财务指标快照 <span>${escapeHtml(fin.period)}</span></h4>
-          <div class="drawer-kpi-row" style="margin-top:4px;">
-            <div class="dkpi"><span>营业收入</span><strong>${escapeHtml(fin.revenue)}</strong></div>
-            <div class="dkpi"><span>营收同比</span><strong class="${fin.revYoY >= 0 ? "val-up" : "val-down"}">${fin.revYoY >= 0 ? "+" : ""}${fin.revYoY.toFixed(1)}%</strong></div>
-            <div class="dkpi"><span>净利润 (${fin.niYoY >= 0 ? "+" : ""}${fin.niYoY.toFixed(1)}%)</span><strong>${escapeHtml(fin.netIncome)}</strong></div>
-            <div class="dkpi"><span>毛利率 / 研发率</span><strong>${fin.grossMargin.toFixed(1)}% / ${fin.rdRatio.toFixed(1)}%</strong></div>
-          </div>
-          <div class="policy-impact-box" style="margin-top:12px;">
-            <strong>业绩核心亮点：</strong>${escapeHtml(fin.highlight)}
-          </div>
-        </div>
+            <div id="p4TrendChartBox" style="width:100%;overflow-x:auto;"></div>
+            <div class="policy-impact-box" style="margin-top:12px;">
+              <strong>当期业绩核心亮点（${escapeHtml(fin.period)}）：</strong>${escapeHtml(fin.highlight)}
+              <ul class="bullet-list" style="margin-top:6px;">
+                ${fin.takeaways.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}
+              </ul>
+            </div>
+          </section>
 
-        <div class="drawer-section">
-          <h4>历史周期营收与净利润趋势图</h4>
-          <div id="drawerTrendChart"></div>
-        </div>
+          <!-- ==================== 模块 2: 六大专业财报维度指标示列与简要分析 ==================== -->
+          <section class="fin-module-block">
+            <div class="fin-module-head">
+              <div class="fin-module-title">
+                <span class="fin-module-num">02</span>
+                <h3>六大专业财报维度 · 核心指标示列与深度拆解</h3>
+              </div>
+              <div class="fin-chart-controls">
+                <div class="segmented-control" id="drawerPeriodSwitch">
+                  <button class="seg-btn ${pKey === "quarterly" ? "active" : ""}" data-period="quarterly">季报 (2026Q3)</button>
+                  <button class="seg-btn ${pKey === "semiannual" ? "active" : ""}" data-period="semiannual">半年报 (2026H1)</button>
+                  <button class="seg-btn ${pKey === "annual" ? "active" : ""}" data-period="annual">年报 (2025FY)</button>
+                </div>
+              </div>
+            </div>
 
-        <div class="drawer-section">
-          <h4>定期报告深度拆解</h4>
-          <ul class="bullet-list">
-            ${fin.takeaways.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}
-          </ul>
+            <div class="fin-sub-nav">
+              <button class="chip active" data-fin-jump="fin-p1">一、利润表</button>
+              <button class="chip" data-fin-jump="fin-p2">二、资产负债表</button>
+              <button class="chip" data-fin-jump="fin-p3">三、现金流量表</button>
+              <button class="chip" data-fin-jump="fin-p4">四、核心周转指标</button>
+              <button class="chip" data-fin-jump="fin-p5">五、盈利回报(杜邦ROE)</button>
+              <button class="chip" data-fin-jump="fin-p6">六、三张表联动检验</button>
+            </div>
+
+            <!-- 一、利润表 -->
+            <div class="fin-part-card" id="fin-p1">
+              <div class="fin-part-head">
+                <h4>一、利润表（营收量价结构 · 毛利率 · 四费 · 利润五层穿透）</h4>
+                <span class="panel-badge">报告期 ${escapeHtml(fin.period)}</span>
+              </div>
+
+              <div class="fin-grid-4">
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">1. 营业收入 & 同比 / 环比</span>
+                  <span class="fk-val">${escapeHtml(inc.revenue)}</span>
+                  <span class="fk-sub"><span class="${inc.revYoY >= 0 ? "val-up" : "val-down"}">同比 ${inc.revYoY >= 0 ? "+" : ""}${inc.revYoY}%</span> · 环比 ${inc.revQoQ >= 0 ? "+" : ""}${inc.revQoQ}%</span>
+                </div>
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">2. 毛利率 vs 同行均值</span>
+                  <span class="fk-val">${inc.gm}%</span>
+                  <span class="fk-sub">同行参考 ${inc.peerAvgGm}%（<span class="${inc.gmDelta >= 0 ? "val-up" : "val-down"}">${inc.gmDelta >= 0 ? "+" : ""}${inc.gmDelta} pct</span>）</span>
+                </div>
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">3. 四费结构 (研/销/管/财)</span>
+                  <span class="fk-val">${inc.rd}% / ${inc.salesExp}%</span>
+                  <span class="fk-sub">管理 ${inc.adminExp}% (SBC ${inc.sbcRatio}%) · 财务 ${inc.finExp}% · 研发资本化 ${inc.rdCapPct}%</span>
+                </div>
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">前五大客户集中度</span>
+                  <span class="fk-val">${inc.top5Pct}%</span>
+                  <span class="fk-sub">主业 ${inc.mainBizPct}% / 其他 ${inc.otherBizPct}% / 投资收益占比 ${inc.invIncomePct}%</span>
+                </div>
+              </div>
+
+              <div class="fin-grid-5">
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">① 营业利润 (主业真实利润)</span>
+                  <span class="fk-val">$${inc.opProfit}亿</span>
+                  <span class="fk-sub">优先观察核心盈利能力</span>
+                </div>
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">② 利润总额 (含营业外)</span>
+                  <span class="fk-val">$${inc.totalProfit}亿</span>
+                  <span class="fk-sub">含补贴/投资收益变动</span>
+                </div>
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">③ 归母净利润 (市场常用)</span>
+                  <span class="fk-val">$${inc.netProfitParent}亿</span>
+                  <span class="fk-sub">销售净利率 ${inc.netMarginPct}%</span>
+                </div>
+                <div class="fin-kpi-box" style="border-color:var(--accent);">
+                  <span class="fk-lbl" style="color:var(--accent);font-weight:700;">④ 扣非净利润 ★重中之重</span>
+                  <span class="fk-val" style="color:var(--accent);">$${inc.deductNonNetProfit}亿</span>
+                  <span class="fk-sub">剔除非经常性损益真实造血</span>
+                </div>
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">⑤ 少数股东损益</span>
+                  <span class="fk-val">$${inc.minorityProfit}亿</span>
+                  <span class="fk-sub">子公司非上市权益占比低</span>
+                </div>
+              </div>
+
+              <div class="fin-analysis-list">
+                <div class="fin-analysis-item">
+                  <strong>收入结构（分产品 & 分区域）</strong>
+                  产品拆分：${escapeHtml(inc.revMix)}；区域结构：${escapeHtml(inc.geoMix)}。
+                </div>
+                <div class="fin-analysis-item">
+                  <strong>量价拆解 & 收入确认质量</strong>
+                  ${escapeHtml(inc.volPrice)} ${escapeHtml(inc.recognition)}
+                </div>
+                <div class="fin-analysis-item" style="grid-column:1 / -1;">
+                  <strong>毛利率驱动因素拆解</strong>
+                  ${escapeHtml(inc.gmDriver)}
+                </div>
+              </div>
+            </div>
+
+            <!-- 二、资产负债表 -->
+            <div class="fin-part-card" id="fin-p2">
+              <div class="fin-part-head">
+                <h4>二、资产负债表（流动/非流动资产 · 有息/无息负债 · 偿债杠杆 · 股东权益）</h4>
+                <span class="panel-badge">总资产 $${bal.totalAssets}亿 · 净资产 $${bal.equity}亿</span>
+              </div>
+
+              <div class="fin-grid-4">
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">资产负债率 / 有息负债率</span>
+                  <span class="fk-val">${bal.debtRatio}% / ${bal.interestDebtRatio}%</span>
+                  <span class="fk-sub">有息负债 $${bal.interestDebt}亿 · 经营占款 $${bal.operatingLiab}亿</span>
+                </div>
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">流动比率 / 速动比率</span>
+                  <span class="fk-val">${bal.currentRatio}x / ${bal.quickRatio}x</span>
+                  <span class="fk-sub">短期偿债覆盖度（剔除存货检验）</span>
+                </div>
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">净负债 (有息负债 − 货币资金)</span>
+                  <span class="fk-val ${bal.netDebt <= 0 ? "val-up" : ""}">${bal.netDebt <= 0 ? "净现金 $" + Math.abs(bal.netDebt) + "亿" : "$" + bal.netDebt + "亿"}</span>
+                  <span class="fk-sub">账面货币资金 $${bal.cash}亿</span>
+                </div>
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">合同负债 (预收款景气度)</span>
+                  <span class="fk-val">$${bal.contractLiab}亿</span>
+                  <span class="fk-sub">客户预付款项与未来订单能见度</span>
+                </div>
+              </div>
+
+              <div class="fin-analysis-list">
+                <div class="fin-analysis-item">
+                  <strong>流动资产 · 应收账款/票据与存货结构</strong>
+                  应收账款 $${bal.arAmount}亿（占年营收 ${bal.arRatio}%，同比 +${bal.arYoY}%），${escapeHtml(bal.billNote)} 存货 $${bal.inventory}亿（${escapeHtml(bal.invStructure)}），${escapeHtml(bal.invNote)}
+                </div>
+                <div class="fin-analysis-item">
+                  <strong>非流动资产 · 固定资产/在建工程/无形与商誉</strong>
+                  固定资产 $${bal.fixedAssets}亿，在建工程 $${bal.cip}亿（需紧盯转固折旧节点）；商誉 $${bal.goodwill}亿（占净资产 ${bal.goodwillToEquity}%，${bal.goodwillToEquity > 35 ? "体量偏高需防并购减值雷" : "商誉减值风险较低"}）。
+                </div>
+                <div class="fin-analysis-item" style="grid-column:1 / -1;">
+                  <strong>股东权益（留存收益 · 库存股回购 · 资本公积）</strong>
+                  ${escapeHtml(bal.equityNote)}
+                </div>
+              </div>
+            </div>
+
+            <!-- 三、现金流量表 -->
+            <div class="fin-part-card" id="fin-p3">
+              <div class="fin-part-head">
+                <h4>三、现金流量表（验证“账面利润”是否为“真金白银”）</h4>
+                <span class="panel-badge">净现比 ${cf.ocfToNi}x · 收现比 ${cf.cashReceiveRatio}%</span>
+              </div>
+
+              <div class="fin-grid-4">
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">1. 经营活动现金流净额</span>
+                  <span class="fk-val val-up">$${cf.ocf}亿</span>
+                  <span class="fk-sub">经营现金流 / 归母净利 = ${cf.ocfToNi}x</span>
+                </div>
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">销售收现比 (收现 / 营收)</span>
+                  <span class="fk-val">${cf.cashReceiveRatio}%</span>
+                  <span class="fk-sub">${cf.cashReceiveRatio >= 98 ? "回款质量优异" : "扩张期应收略占用现金"}</span>
+                </div>
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">2. 投资活动 CAPEX 流出</span>
+                  <span class="fk-val">$${cf.capex}亿</span>
+                  <span class="fk-sub">资本开支占营收 ${cf.capexPctRev}%</span>
+                </div>
+                <div class="fin-kpi-box">
+                  <span class="fk-lbl">自由现金流 (OCF − CAPEX)</span>
+                  <span class="fk-val ${cf.fcf >= 0 ? "val-up" : "val-down"}">$${cf.fcf}亿</span>
+                  <span class="fk-sub">3. 筹资分红率约 ${cf.dividendRate}%</span>
+                </div>
+              </div>
+              <div class="fin-analysis-item">
+                <strong>经营 · 投资 · 筹资三流拆解简评</strong>
+                经营端销售商品收现覆盖采购、职工薪酬与税费支出，净现比 ${cf.ocfToNi}x；投资端资本开支重点投向下一代 AI 产线/算力基建扩产；筹资端：${escapeHtml(cf.financingNote)}
+              </div>
+            </div>
+
+            <!-- 四、核心周转指标 & 五、盈利回报(杜邦ROE) 并排 -->
+            <div class="fin-grid-2">
+              <div class="fin-part-card" id="fin-p4" style="margin-bottom:14px;">
+                <div class="fin-part-head">
+                  <h4>四、核心周转指标（产业链议价与运营效率）</h4>
+                  <span class="panel-badge">现金循环周期 ${turn.ccc} 天</span>
+                </div>
+                <div class="fin-grid-2">
+                  <div class="fin-kpi-box">
+                    <span class="fk-lbl">1. 应收账款周转天数 (DSO)</span>
+                    <span class="fk-val">${turn.dso} 天</span>
+                    <span class="fk-sub">越短说明对下游客户议价权越强</span>
+                  </div>
+                  <div class="fin-kpi-box">
+                    <span class="fk-lbl">2. 存货周转天数 (DIO)</span>
+                    <span class="fk-val">${turn.dio} 天</span>
+                    <span class="fk-sub">科技硬件迭代快，紧盯防跌价</span>
+                  </div>
+                  <div class="fin-kpi-box">
+                    <span class="fk-lbl">3. 应付账款周转天数 (DPO)</span>
+                    <span class="fk-val">${turn.dpo} 天</span>
+                    <span class="fk-sub">越长说明占用上游供应商资金越强势</span>
+                  </div>
+                  <div class="fin-kpi-box">
+                    <span class="fk-lbl">4. 固定资产周转率</span>
+                    <span class="fk-val">${turn.fixedAssetTurnover}x</span>
+                    <span class="fk-sub">反映厂房/算力机房产能利用率</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="fin-part-card" id="fin-p5" style="margin-bottom:14px;">
+                <div class="fin-part-head">
+                  <h4>五、盈利回报指标（股东视角 · 杜邦 ROE 拆解）</h4>
+                  <span class="panel-badge">ROA ${ret.roa}% · 分红率 ${ret.dividendRate}%</span>
+                </div>
+                <div class="dupont-eq">
+                  <div class="dupont-term">
+                    <span>ROE 净资产收益率</span>
+                    <strong style="color:var(--positive);">${ret.roe}%</strong>
+                  </div>
+                  <span class="dupont-op">=</span>
+                  <div class="dupont-term">
+                    <span>销售净利率</span>
+                    <strong>${ret.netMarginPct}%</strong>
+                  </div>
+                  <span class="dupont-op">×</span>
+                  <div class="dupont-term">
+                    <span>资产周转率</span>
+                    <strong>${ret.assetTurnover}x</strong>
+                  </div>
+                  <span class="dupont-op">×</span>
+                  <div class="dupont-term">
+                    <span>权益乘数(杠杆)</span>
+                    <strong>${ret.equityMultiplier}x</strong>
+                  </div>
+                </div>
+                <div class="fin-analysis-item">
+                  <strong>杜邦质量诊断</strong>
+                  ${ret.netMarginPct >= 18 ? "属于典型【高净利率盈利驱动型】优质 ROE，并非靠激进财务杠杆堆砌" : ret.assetTurnover >= 0.95 ? "属于【高周转规模效率驱动型】ROE，靠供应链快转与规模摊薄创造股东回报" : "ROE 由盈利与适度资本杠杆共同驱动，随新产能释放净利率与周转率具备进一步上行空间"}；剔除杠杆后 ROA 达 ${ret.roa}%。
+                </div>
+              </div>
+            </div>
+
+            <!-- 六、三张表联动交叉检验 -->
+            <div class="fin-part-card" id="fin-p6" style="margin-bottom:0;">
+              <div class="fin-part-head">
+                <h4>六、三张表联动交叉验证（投研排雷与含金量核查）</h4>
+                <span class="panel-badge">6 项自动交叉检验</span>
+              </div>
+              <div class="crosscheck-grid">
+                ${prof.crossChecks.map((cc) => `
+                  <div class="cc-card ${cc.status === "warn" ? "warn" : ""}">
+                    <div class="cc-head">
+                      <strong>${escapeHtml(cc.title)}</strong>
+                      <span class="cc-tag">${escapeHtml(cc.tag)}</span>
+                    </div>
+                    <p>${escapeHtml(cc.detail)}</p>
+                  </div>`).join("")}
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== 模块 3: 综合上述指标 · 企业经营优劣势总结 ==================== -->
+          <section class="fin-module-block">
+            <div class="fin-module-head">
+              <div class="fin-module-title">
+                <span class="fin-module-num">03</span>
+                <h3>综合财务诊断 · 企业经营优势与劣势总结</h3>
+              </div>
+              <span class="panel-badge">基于三表联动与杜邦框架自动生成</span>
+            </div>
+
+            <div class="verdict-banner">
+              <div style="display:flex;align-items:center;gap:16px;flex:1;min-width:260px;">
+                <div class="score-circle">${sum.totalScore}</div>
+                <div>
+                  <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px;">AI 投研综合财务健康评分（满分 100）</div>
+                  <div style="font-size:14.5px;font-weight:700;color:var(--text-primary);">${escapeHtml(sum.verdict)}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="score-bars">
+              <div class="score-bar-item">
+                <div class="sb-top"><span>盈利护城河与成长</span><strong>${sum.scores.profit}</strong></div>
+                <div class="sb-track"><div class="sb-fill" style="width:${sum.scores.profit}%;"></div></div>
+              </div>
+              <div class="score-bar-item">
+                <div class="sb-top"><span>现金流含金量</span><strong>${sum.scores.cash}</strong></div>
+                <div class="sb-track"><div class="sb-fill" style="width:${sum.scores.cash}%;"></div></div>
+              </div>
+              <div class="score-bar-item">
+                <div class="sb-top"><span>资产安全与杠杆</span><strong>${sum.scores.safety}</strong></div>
+                <div class="sb-track"><div class="sb-fill" style="width:${sum.scores.safety}%;"></div></div>
+              </div>
+              <div class="score-bar-item">
+                <div class="sb-top"><span>股东回报 (ROE/分红)</span><strong>${sum.scores.ret}</strong></div>
+                <div class="sb-track"><div class="sb-fill" style="width:${sum.scores.ret}%;"></div></div>
+              </div>
+            </div>
+
+            <div class="sw-grid">
+              <div class="sw-box pros">
+                <h4>▲ 核心经营优势（Strengths）</h4>
+                <ul>
+                  ${sum.strengths.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}
+                </ul>
+              </div>
+              <div class="sw-box cons">
+                <h4>▼ 核心经营劣势与潜在风险（Weaknesses & Watchlist）</h4>
+                <ul>
+                  ${sum.weaknesses.map((w) => `<li>${escapeHtml(w)}</li>`).join("")}
+                </ul>
+              </div>
+            </div>
+          </section>
         </div>`;
 
-      window.AICharts.renderCompanyTrendChart(
-        document.getElementById("drawerTrendChart"),
-        fin.series,
+      // Render P4-style chart
+      window.AICharts.renderP4FinancialTrendChart(
+        document.getElementById("p4TrendChartBox"),
+        prof.p4Series[sMode],
+        mMode,
         unitLabel
       );
 
+      // Bind controls
+      document.querySelectorAll("#p4SeriesSwitch .seg-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          appState.p4SeriesMode = btn.dataset.smode;
+          renderDrawerBody(c);
+        });
+      });
+      document.querySelectorAll("#p4MetricSwitch .seg-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          appState.p4MetricMode = btn.dataset.mmode;
+          renderDrawerBody(c);
+        });
+      });
       document.querySelectorAll("#drawerPeriodSwitch .seg-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
           appState.drawerPeriod = btn.dataset.period;
           renderDrawerBody(c);
+        });
+      });
+      body.querySelectorAll("[data-fin-jump]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          body.querySelectorAll("[data-fin-jump]").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          const target = document.getElementById(btn.dataset.finJump);
+          if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
         });
       });
     } else if (tab === "products") {
@@ -483,55 +839,64 @@
       const downLinks = dedupeLinks(allLinks.filter((l) => l.from === c.id));
 
       body.innerHTML = `
-        <div class="drawer-section">
-          <h4>核心护城河与产业链定位</h4>
-          <div class="policy-impact-box">${escapeHtml(c.moat)}</div>
-        </div>
-
-        <div class="drawer-section">
-          <h4>主要 AI 产品与技术平台</h4>
-          <div class="product-grid">
-            ${c.products.map((p) => `
-              <div class="product-card">
-                <span class="product-cat">${escapeHtml(p.category)}</span>
-                <h5>${escapeHtml(p.name)}</h5>
-                <p>${escapeHtml(p.desc)}</p>
-              </div>`).join("")}
+        <div class="drawer-body-inner">
+          <div class="drawer-section">
+            <h4>核心护城河与产业链定位</h4>
+            <div class="policy-impact-box">${escapeHtml(c.moat)}</div>
           </div>
-        </div>
 
-        <div class="drawer-section">
-          <h4>核心应用领域与商业场景</h4>
-          <div class="chip-group">
-            ${c.applications.map((a) => `<span class="chip active">${escapeHtml(a)}</span>`).join("")}
+          <div class="drawer-section">
+            <h4>主要 AI 产品与技术平台（图示化产品矩阵）</h4>
+            <div class="product-grid">
+              ${c.products.map((p, idx) => `
+                <div class="product-card">
+                  ${window.AIProductVisuals ? window.AIProductVisuals.renderProductBannerSvg(p, c, idx) : ""}
+                  <div class="product-card-body">
+                    <span class="product-cat">${escapeHtml(p.category)}</span>
+                    <h5>${escapeHtml(p.name)}</h5>
+                    <p>${escapeHtml(p.desc)}</p>
+                  </div>
+                </div>`).join("")}
+            </div>
           </div>
-        </div>
 
-        <div class="drawer-section">
-          <h4>直接上游供应 / 技术支撑 (${upLinks.length})</h4>
-          <div class="relation-chips">
-            ${upLinks.length ? upLinks.map((lk) => {
-              const partner = getCompanyById(lk.from);
-              if (!partner) return "";
-              return `<button class="rel-chip" data-jump-id="${partner.id}">
-                <strong>${escapeHtml(partner.name)}</strong>
-                <small>· ${escapeHtml(lk.label)}</small>
-              </button>`;
-            }).join("") : `<span style="color:var(--text-muted);font-size:12.5px;">位于产业链最上游设备/材料源头</span>`}
+          <div class="drawer-section">
+            <h4>核心应用领域与商业落地场景</h4>
+            <div class="app-visual-grid">
+              ${c.applications.map((a, idx) => window.AIProductVisuals
+                ? window.AIProductVisuals.renderApplicationCardVisual(escapeHtml(a), idx)
+                : `<span class="chip active">${escapeHtml(a)}</span>`).join("")}
+            </div>
           </div>
-        </div>
 
-        <div class="drawer-section">
-          <h4>直接下游客户 / 生态赋能 (${downLinks.length})</h4>
-          <div class="relation-chips">
-            ${downLinks.length ? downLinks.map((lk) => {
-              const partner = getCompanyById(lk.to);
-              if (!partner) return "";
-              return `<button class="rel-chip" data-jump-id="${partner.id}">
-                <strong>${escapeHtml(partner.name)}</strong>
-                <small>· ${escapeHtml(lk.label)}</small>
-              </button>`;
-            }).join("") : `<span style="color:var(--text-muted);font-size:12.5px;">直接面向全球终端消费者及行业企业客户</span>`}
+          <div class="fin-grid-2">
+            <div class="drawer-section" style="margin-bottom:0;">
+              <h4>直接上游供应 / 技术支撑 (${upLinks.length})</h4>
+              <div class="relation-chips">
+                ${upLinks.length ? upLinks.map((lk) => {
+                  const partner = getCompanyById(lk.from);
+                  if (!partner) return "";
+                  return `<button class="rel-chip" data-jump-id="${partner.id}">
+                    <strong>${escapeHtml(partner.name)}</strong>
+                    <small>· ${escapeHtml(lk.label)}</small>
+                  </button>`;
+                }).join("") : `<span style="color:var(--text-muted);font-size:12.5px;">位于产业链最上游设备/材料源头</span>`}
+              </div>
+            </div>
+
+            <div class="drawer-section" style="margin-bottom:0;">
+              <h4>直接下游客户 / 生态赋能 (${downLinks.length})</h4>
+              <div class="relation-chips">
+                ${downLinks.length ? downLinks.map((lk) => {
+                  const partner = getCompanyById(lk.to);
+                  if (!partner) return "";
+                  return `<button class="rel-chip" data-jump-id="${partner.id}">
+                    <strong>${escapeHtml(partner.name)}</strong>
+                    <small>· ${escapeHtml(lk.label)}</small>
+                  </button>`;
+                }).join("") : `<span style="color:var(--text-muted);font-size:12.5px;">直接面向全球终端消费者及行业企业客户</span>`}
+              </div>
+            </div>
           </div>
         </div>`;
 
@@ -542,7 +907,7 @@
       const matched = window.AIChainData.policies.filter(
         (p) => p.companies.includes(c.id) || p.tiers.includes(c.tier)
       );
-      body.innerHTML = matched.length ? matched.map((p) => `
+      body.innerHTML = `<div class="drawer-body-inner">${matched.length ? matched.map((p) => `
         <div class="drawer-section">
           <div class="policy-meta" style="margin-bottom:8px;">
             <div class="policy-badges">
@@ -555,47 +920,49 @@
           <h4>${escapeHtml(p.title)}</h4>
           <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">${escapeHtml(p.summary)}</p>
           <div class="policy-impact-box"><strong>产业链影响评估：</strong>${escapeHtml(p.chainImpact)}</div>
-        </div>`).join("") : `<div class="empty-state">暂无直接关联政策记录</div>`;
+        </div>`).join("") : `<div class="empty-state">暂无直接关联政策记录</div>`}</div>`;
     } else if (tab === "research") {
       const relatedReports = window.AIChainData.researchReports.filter(
         (r) => r.companies.includes(c.id) || r.tier === c.tier
       );
       body.innerHTML = `
-        <div class="drawer-section">
-          <h4>机构一致性观点摘要 <span class="rating-pill">${escapeHtml(c.research.consensus)}</span></h4>
-          <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">
-            <strong>代表覆盖机构：</strong>${escapeHtml(c.research.broker)}
-          </p>
-          <div class="policy-impact-box" style="margin-bottom:12px;">
-            <strong>核心投资逻辑：</strong>${escapeHtml(c.research.thesis)}
-          </div>
-          <div class="catalyst-row">
-            <div class="cat-box cat-bull">
-              <span>▲ 关键上行催化</span>
-              ${escapeHtml(c.research.catalysts)}
-            </div>
-            <div class="cat-box cat-risk">
-              <span>▼ 核心风险提示</span>
-              ${escapeHtml(c.research.risks)}
-            </div>
-          </div>
-        </div>
-
-        <h4 style="margin:14px 0 10px;font-size:14px;">关联行业深度研报 (${relatedReports.length})</h4>
-        ${relatedReports.map((r) => `
+        <div class="drawer-body-inner">
           <div class="drawer-section">
-            <div class="research-head" style="margin-bottom:6px;">
-              <span class="broker-name">${escapeHtml(r.broker)}</span>
-              <span class="policy-date">${escapeHtml(r.date)}</span>
+            <h4>机构一致性观点摘要 <span class="rating-pill">${escapeHtml(c.research.consensus)}</span></h4>
+            <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">
+              <strong>代表覆盖机构：</strong>${escapeHtml(c.research.broker)}
+            </p>
+            <div class="policy-impact-box" style="margin-bottom:12px;">
+              <strong>核心投资逻辑：</strong>${escapeHtml(c.research.thesis)}
             </div>
-            <h4 style="margin-bottom:6px;">${escapeHtml(r.title)}</h4>
-            <p style="margin:0;font-size:12.8px;color:var(--text-secondary);">${escapeHtml(r.summary)}</p>
-          </div>`).join("")}`;
+            <div class="catalyst-row">
+              <div class="cat-box cat-bull">
+                <span>▲ 关键上行催化</span>
+                ${escapeHtml(c.research.catalysts)}
+              </div>
+              <div class="cat-box cat-risk">
+                <span>▼ 核心风险提示</span>
+                ${escapeHtml(c.research.risks)}
+              </div>
+            </div>
+          </div>
+
+          <h4 style="margin:14px 0 10px;font-size:14px;">关联行业深度研报 (${relatedReports.length})</h4>
+          ${relatedReports.map((r) => `
+            <div class="drawer-section">
+              <div class="research-head" style="margin-bottom:6px;">
+                <span class="broker-name">${escapeHtml(r.broker)}</span>
+                <span class="policy-date">${escapeHtml(r.date)}</span>
+              </div>
+              <h4 style="margin-bottom:6px;">${escapeHtml(r.title)}</h4>
+              <p style="margin:0;font-size:12.8px;color:var(--text-secondary);">${escapeHtml(r.summary)}</p>
+            </div>`).join("")}
+        </div>`;
     } else if (tab === "news") {
       const related = appState.newsItems.filter(
         (n) => (n.companies && n.companies.includes(c.id)) || n.tier === c.tier
       );
-      body.innerHTML = related.length ? related.map((n) => `
+      body.innerHTML = `<div class="drawer-body-inner">${related.length ? related.map((n) => `
         <div class="drawer-section">
           <div class="news-meta">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -609,7 +976,7 @@
           <h4 style="margin-bottom:6px;">${escapeHtml(n.title)}</h4>
           <p style="margin:0 0 8px;font-size:13px;color:var(--text-secondary);">${escapeHtml(n.summary)}</p>
           ${n.link ? `<a class="news-ext-link" href="${escapeHtml(n.link)}" target="_blank" rel="noopener noreferrer">查看原文 ↗</a>` : ""}
-        </div>`).join("") : `<div class="empty-state">暂无相关资讯</div>`;
+        </div>`).join("") : `<div class="empty-state">暂无相关资讯</div>`}</div>`;
     }
   }
 
