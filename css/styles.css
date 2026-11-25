@@ -1079,7 +1079,7 @@ button {
   inset: 0;
   background: rgba(2, 6, 23, 0.58);
   backdrop-filter: blur(4px);
-  z-index: 60;
+  z-index: 20000;
 }
 
 .company-drawer {
@@ -1091,7 +1091,7 @@ button {
   background: var(--bg-surface);
   border-left: 1px solid var(--border-strong);
   box-shadow: var(--shadow-lg);
-  z-index: 70;
+  z-index: 20010;
   display: flex;
   flex-direction: column;
   transform: translateX(102%);
@@ -1693,7 +1693,7 @@ button {
   inset: 0;
   background: rgba(2, 6, 23, 0.62);
   backdrop-filter: blur(4px);
-  z-index: 80;
+  z-index: 20020;
 }
 
 .modal {
@@ -1706,7 +1706,7 @@ button {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  z-index: 90;
+  z-index: 20030;
   padding: 20px 22px;
 }
 
@@ -1833,6 +1833,8 @@ button {
 
 .u3d-viewport-shell {
   position: relative;
+  z-index: 1;
+  isolation: isolate;
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid rgba(56, 189, 248, 0.28);
