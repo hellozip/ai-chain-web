@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 全球产业链投研图谱 · 上中下游全股市追踪终端</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Header & Navigation -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand" id="brandReset" title="返回全景视图">
+          <div class="brand-logo" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="24" height="24" fill="none">
+              <circle cx="7" cy="16" r="3.5" fill="#38bdf8" />
+              <circle cx="16" cy="8" r="3.5" fill="#a78bfa" />
+              <circle cx="16" cy="24" r="3.5" fill="#a78bfa" />
+              <circle cx="25" cy="16" r="3.5" fill="#34d399" />
+              <path d="M10.2 14.2L13 10.5M10.2 17.8L13 21.5M19 10.5L21.8 14.2M19 21.5L21.8 17.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.85"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1>AI 产业链投研终端</h1>
+            <span class="brand-sub">GLOBAL AI VALUE CHAIN · 30 MEGA-CAP LEADERS</span>
+          </div>
+        </div>
+
+        <nav class="main-nav" role="tablist" aria-label="主导航">
+          <button class="nav-tab active" data-view="chain" role="tab" aria-selected="true">
+            <span class="nav-dot dot-cyan"></span>产业链图谱
+          </button>
+          <button class="nav-tab" data-view="financials" role="tab" aria-selected="false">
+            <span class="nav-dot dot-violet"></span>财经分析
+          </button>
+          <button class="nav-tab" data-view="policy" role="tab" aria-selected="false">
+            <span class="nav-dot dot-amber"></span>政策变动
+          </button>
+          <button class="nav-tab" data-view="research" role="tab" aria-selected="false">
+            <span class="nav-dot dot-emerald"></span>研报重点
+          </button>
+          <button class="nav-tab" data-view="news" role="tab" aria-selected="false">
+            <span class="nav-dot dot-rose"></span>每日资讯
+            <span class="nav-badge" id="newsCountBadge">12</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="topbar-right">
+        <button class="live-pill" id="liveSyncBtn" title="点击立即刷新实时股价与全网资讯">
+          <span class="live-dot" id="liveSyncDot"></span>
+          <span id="liveSyncText">连接实时源...</span>
+        </button>
+
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="9" cy="9" r="6"></circle>
+            <path d="M13.5 13.5L17.5 17.5" stroke-linecap="round"></path>
+          </svg>
+          <input type="text" id="globalSearch" placeholder="搜索公司、代码、产品、赛道..." autocomplete="off" />
+          <button class="search-clear" id="searchClear" title="清除搜索" hidden>&times;</button>
+        </div>
+
+        <button class="icon-btn" id="openComposerBtn" title="添加每日资讯 / 管理数据">
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M10 4v12M4 10h12" stroke-linecap="round"/>
+          </svg>
+          <span>录入资讯</span>
+        </button>
+
+        <button class="icon-btn theme-btn" id="themeToggle" title="切换深色 / 浅色模式" aria-label="切换主题">
+          <svg class="sun-icon" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="10" cy="10" r="3.5"/>
+            <path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4" stroke-linecap="round"/>
+          </svg>
+          <svg class="moon-icon" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M16.2 12.6A6.5 6.5 0 017.4 3.8a6.5 6.5 0 108.8 8.8z" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Live Daily Ticker Strip -->
+    <div class="ticker-strip">
+      <div class="ticker-label">
+        <span class="pulse-dot"></span>
+        <span>每日速递 · 2026-11-24</span>
+      </div>
+      <div class="ticker-scroll" id="tickerContainer"></div>
+      <button class="ticker-more" id="tickerMoreBtn">全部资讯 →</button>
+    </div>
+
+    <!-- Main Workspace -->
+    <main class="workspace">
+      <!-- VIEW 1: INTERACTIVE CHAIN GRAPH -->
+      <section class="view-section active" id="view-chain">
+        <!-- Control Bar -->
+        <div class="toolbar">
+          <div class="toolbar-group">
+            <span class="toolbar-label">股市筛选</span>
+            <div class="chip-group" id="marketFilterGroup">
+              <button class="chip active" data-market="ALL">全部股市 (30)</button>
+              <button class="chip" data-market="US">美股 US</button>
+              <button class="chip" data-market="CN">A股 CN</button>
+              <button class="chip" data-market="HK">港股 HK</button>
+              <button class="chip" data-market="TW">台股 TW</button>
+              <button class="chip" data-market="EU">欧股 EU</button>
+              <button class="chip" data-market="KR">韩股 KR</button>
+              <button class="chip" data-market="JP">日股 JP</button>
+            </div>
+          </div>
+
+          <div class="toolbar-group toolbar-right">
+            <div class="select-wrap">
+              <label for="sortMetric">排序指标</label>
+              <select id="sortMetric">
+                <option value="marketCap">总市值 (高→低)</option>
+                <option value="liveChange">今日实时涨跌幅</option>
+                <option value="revGrowth">营收同比增速</option>
+                <option value="grossMargin">毛利率</option>
+                <option value="rdRatio">研发费用率</option>
+              </select>
+            </div>
+
+            <button class="btn-subtle active" id="toggleAllEdgesBtn" title="切换显示全链路连线">
+              <span class="edge-indicator"></span>全链路连线
+            </button>
+            <button class="btn-subtle" id="clearSelectionBtn" hidden>清除路径高亮</button>
+          </div>
+        </div>
+
+        <!-- Macro KPI Overview Bar -->
+        <div class="summary-strip" id="chainSummaryStrip"></div>
+
+        <!-- Interactive Chain Diagram Stage -->
+        <div class="chain-stage-wrapper">
+          <div class="chain-hint-bar" id="chainHintBar">
+            <span class="hint-badge">交互提示</span>
+            <span id="chainHintText">悬停节点可预览上下游传导链；点击任意上市公司节点，可锁定路径并打开 5 维投研详情面板（定期报告 · 政策 · 产品 · 研报 · 资讯）。</span>
+          </div>
+
+          <div class="chain-stage" id="chainStage">
+            <!-- Dynamic SVG Edges Layer -->
+            <svg class="chain-edges-svg" id="chainEdgesSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+
+            <!-- 3 Columns: Upstream / Midstream / Downstream -->
+            <div class="chain-columns" id="chainColumns">
+              <div class="chain-col" data-tier="upstream">
+                <div class="tier-header tier-upstream">
+                  <div class="tier-title-row">
+                    <span class="tier-tag">UPSTREAM · 01</span>
+                    <h2>上游 · 算力硬件与基础制造</h2>
+                  </div>
+                  <p class="tier-desc">GPU/ASIC 芯片、EUV 光刻设备、先进晶圆代工、HBM 存储与 AI 服务器整机</p>
+                  <div class="tier-meta" id="meta-upstream"></div>
+                </div>
+                <div class="node-list" id="nodes-upstream"></div>
+              </div>
+
+              <div class="chain-col" data-tier="midstream">
+                <div class="tier-header tier-midstream">
+                  <div class="tier-title-row">
+                    <span class="tier-tag">MIDSTREAM · 02</span>
+                    <h2>中游 · 基础大模型与算力云平台</h2>
+                  </div>
+                  <p class="tier-desc">超大规模云计算、基础多模态大模型、企业级数据本体与 AI 算力调度底座</p>
+                  <div class="tier-meta" id="meta-midstream"></div>
+                </div>
+                <div class="node-list" id="nodes-midstream"></div>
+              </div>
+
+              <div class="chain-col" data-tier="downstream">
+                <div class="tier-header tier-downstream">
+                  <div class="tier-title-row">
+                    <span class="tier-tag">DOWNSTREAM · 03</span>
+                    <h2>下游 · 行业应用与智能终端</h2>
+                  </div>
+                  <p class="tier-desc">端侧 AI 终端、企业级 Agent SaaS、自动驾驶、具身智能机器人与工业数字孪生</p>
+                  <div class="tier-meta" id="meta-downstream"></div>
+                </div>
+                <div class="node-list" id="nodes-downstream"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: FINANCIAL ANALYSIS MATRIX -->
+      <section class="view-section" id="view-financials">
+        <div class="section-head">
+          <div>
+            <h2>财经分析 · 定期报告横向对比矩阵</h2>
+            <p class="section-sub">覆盖全球 30 家 AI 核心上市公司的季报、半年报、年报财务指标对比与盈利质量透视</p>
+          </div>
+          <div class="segmented-control" id="matrixPeriodSwitch">
+            <button class="seg-btn active" data-period="quarterly">最新季报 (2026Q3)</button>
+            <button class="seg-btn" data-period="semiannual">半年报 (2026H1)</button>
+            <button class="seg-btn" data-period="annual">年报 (2025FY)</button>
+          </div>
+        </div>
+
+        <div class="toolbar compact">
+          <div class="chip-group" id="finTierFilter">
+            <button class="chip active" data-tier="ALL">全产业链</button>
+            <button class="chip" data-tier="upstream">上游硬件</button>
+            <button class="chip" data-tier="midstream">中游云与模型</button>
+            <button class="chip" data-tier="downstream">下游应用终端</button>
+          </div>
+          <div class="fin-legend">
+            <span>点击表格任意公司行可直接打开深度财报图表</span>
+          </div>
+        </div>
+
+        <div class="fin-charts-grid" id="finChartsGrid">
+          <div class="panel-card">
+            <div class="panel-card-head">
+              <h3>各环节平均营收同比增速 vs 毛利率</h3>
+              <span class="panel-badge" id="finChartPeriodLabel">2026Q3</span>
+            </div>
+            <div class="chart-box" id="tierComparisonChart"></div>
+          </div>
+          <div class="panel-card">
+            <div class="panel-card-head">
+              <h3>营收增速 TOP 10 领跑公司</h3>
+              <span class="panel-badge">YoY %</span>
+            </div>
+            <div class="chart-box" id="topGrowthChart"></div>
+          </div>
+        </div>
+
+        <div class="panel-card table-card">
+          <div class="table-wrap">
+            <table class="data-table" id="financialTable">
+              <thead>
+                <tr>
+                  <th data-sort="name">公司 / 代码</th>
+                  <th data-sort="tier">产业链环节</th>
+                  <th data-sort="market">市场</th>
+                  <th data-sort="liveChange" class="num sortable">实时股价 / 涨跌</th>
+                  <th data-sort="marketCap" class="num sortable">总市值 (亿美元)</th>
+                  <th data-sort="revenue" class="num sortable">报告期营收</th>
+                  <th data-sort="revYoY" class="num sortable">营收同比</th>
+                  <th data-sort="netIncome" class="num sortable">净利润</th>
+                  <th data-sort="niYoY" class="num sortable">净利同比</th>
+                  <th data-sort="grossMargin" class="num sortable">毛利率</th>
+                  <th data-sort="rdRatio" class="num sortable">研发费用率</th>
+                  <th>核心财报看点</th>
+                </tr>
+              </thead>
+              <tbody id="financialTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: POLICY TRACKER -->
+      <section class="view-section" id="view-policy">
+        <div class="section-head">
+          <div>
+            <h2>全球 AI 政策变动与监管影响追踪</h2>
+            <p class="section-sub">追踪中美欧日韩台算力基建扶持、半导体出口管制、AI 安全合规及产业应用补贴政策</p>
+          </div>
+          <div class="chip-group" id="policyRegionFilter">
+            <button class="chip active" data-region="ALL">全部地区</button>
+            <button class="chip" data-region="中国">中国</button>
+            <button class="chip" data-region="美国">美国</button>
+            <button class="chip" data-region="欧盟">欧盟</button>
+            <button class="chip" data-region="日韩台">日韩台</button>
+          </div>
+        </div>
+
+        <div class="policy-filters-row">
+          <div class="chip-group" id="policyImpactFilter">
+            <button class="chip active" data-impact="ALL">全部影响方向</button>
+            <button class="chip" data-impact="positive">产业利好 / 补贴支持</button>
+            <button class="chip" data-impact="neutral">标准建立 / 中性规范</button>
+            <button class="chip" data-impact="restrictive">出口管制 / 合规趋严</button>
+          </div>
+        </div>
+
+        <div class="policy-grid" id="policyGrid"></div>
+      </section>
+
+      <!-- VIEW 4: RESEARCH REPORT HIGHLIGHTS -->
+      <section class="view-section" id="view-research">
+        <div class="section-head">
+          <div>
+            <h2>核心机构研报重点与一致性预期</h2>
+            <p class="section-sub">聚合高盛、摩根士丹利、中金、中信证券、瑞银等主流卖方机构对 AI 上中下游的核心观点与催化因子</p>
+          </div>
+          <div class="chip-group" id="researchTierFilter">
+            <button class="chip active" data-tier="ALL">全链研报</button>
+            <button class="chip" data-tier="upstream">上游算力</button>
+            <button class="chip" data-tier="midstream">中游云与模型</button>
+            <button class="chip" data-tier="downstream">下游应用</button>
+          </div>
+        </div>
+
+        <div class="research-grid" id="researchGrid"></div>
+      </section>
+
+      <!-- VIEW 5: DAILY INTELLIGENCE -->
+      <section class="view-section" id="view-news">
+        <div class="section-head">
+          <div>
+            <h2>AI 产业链每日资讯中心</h2>
+            <p class="section-sub">覆盖财报快讯、供应链排产、大模型发布、政策动态与资本开支信号，支持自定义录入与导出</p>
+          </div>
+          <div class="news-actions">
+            <button class="btn-subtle" id="refreshLiveNewsBtn">↻ 实时抓取资讯</button>
+            <button class="btn-primary" id="newsAddBtn">+ 录入新资讯</button>
+            <button class="btn-subtle" id="exportDataBtn">导出 JSON 数据</button>
+          </div>
+        </div>
+
+        <div class="toolbar compact">
+          <div class="chip-group" id="newsTierFilter">
+            <button class="chip active" data-tier="ALL">全部资讯</button>
+            <button class="chip" data-tier="upstream">上游硬件</button>
+            <button class="chip" data-tier="midstream">中游模型与云</button>
+            <button class="chip" data-tier="downstream">下游应用</button>
+            <button class="chip" data-tier="macro">宏观政策</button>
+          </div>
+          <div class="chip-group" id="newsSentimentFilter">
+            <button class="chip active" data-sentiment="ALL">全部情绪</button>
+            <button class="chip" data-sentiment="bullish">利好</button>
+            <button class="chip" data-sentiment="neutral">中性</button>
+            <button class="chip" data-sentiment="bearish">利空 / 风险</button>
+          </div>
+        </div>
+
+        <div class="news-layout">
+          <div class="news-feed" id="newsFeed"></div>
+          <aside class="news-sidebar">
+            <div class="panel-card">
+              <h3>今日热点公司提及频次</h3>
+              <div id="hotTopicsList" class="hot-topics"></div>
+            </div>
+            <div class="panel-card">
+              <h3>数据说明与自定义更新</h3>
+              <p class="note-text">
+                本终端内置 2026 年 Q3 / H1 及 2025 年报期全球 30 家 AI 链大市值龙头基准研报快照，支持零后端离线运行。
+                您可以随时通过右上角 <strong>“录入资讯”</strong> 添加每日最新消息（自动保存在浏览器本地存储），或导出 JSON 备份。
+              </p>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer Disclaimer -->
+    <footer class="app-footer">
+      <span>AI 全球产业链投研图谱 · 覆盖美股 / A股 / 港股 / 台股 / 欧股 / 韩股 / 日股上中下游共 30 家核心大市值上市公司</span>
+      <span>数据为投研参考快照（含 2025FY / 2026H1 / 2026Q3 财报口径），不构成投资建议</span>
+    </footer>
+  </div>
+
+  <!-- Company Deep-Dive Slide-Over Drawer (5 Dimensions) -->
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+  <aside class="company-drawer" id="companyDrawer" aria-hidden="true">
+    <div class="drawer-header" id="drawerHeader"></div>
+
+    <div class="drawer-tabs" role="tablist">
+      <button class="drawer-tab active" data-tab="financials">1. 财经分析</button>
+      <button class="drawer-tab" data-tab="products">2. 产品与领域</button>
+      <button class="drawer-tab" data-tab="policy">3. 政策变动</button>
+      <button class="drawer-tab" data-tab="research">4. 研报重点</button>
+      <button class="drawer-tab" data-tab="news">5. 相关资讯</button>
+    </div>
+
+    <div class="drawer-body" id="drawerBody"></div>
+  </aside>
+
+  <!-- Add Daily News Modal -->
+  <div class="modal-backdrop" id="composerBackdrop" hidden></div>
+  <div class="modal" id="composerModal" role="dialog" aria-modal="true" aria-labelledby="composerTitle" hidden>
+    <div class="modal-head">
+      <h3 id="composerTitle">录入每日产业链资讯</h3>
+      <button class="modal-close" id="closeComposerBtn" aria-label="关闭">&times;</button>
+    </div>
+    <form id="newsComposerForm" class="modal-form">
+      <div class="form-row">
+        <label for="newsTitleInput">资讯标题 *</label>
+        <input id="newsTitleInput" type="text" required placeholder="例如：台积电宣布 2027 年 CoWoS 月产能再上调 20%" />
+      </div>
+      <div class="form-grid-3">
+        <div class="form-row">
+          <label for="newsTierInput">所属环节</label>
+          <select id="newsTierInput">
+            <option value="upstream">上游 · 算力硬件</option>
+            <option value="midstream">中游 · 模型与云</option>
+            <option value="downstream">下游 · 行业应用</option>
+            <option value="macro">宏观政策</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="newsSentimentInput">情绪标签</label>
+          <select id="newsSentimentInput">
+            <option value="bullish">利好</option>
+            <option value="neutral">中性</option>
+            <option value="bearish">利空 / 风险</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="newsSourceInput">信息来源</label>
+          <input id="newsSourceInput" type="text" value="自选投研笔记" />
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="newsCompaniesInput">关联公司代码（可选，逗号分隔，如 NVDA,2330.TW）</label>
+        <input id="newsCompaniesInput" type="text" placeholder="NVDA, MSFT, 601138.SH" />
+      </div>
+      <div class="form-row">
+        <label for="newsSummaryInput">核心摘要 *</label>
+        <textarea id="newsSummaryInput" rows="3" required placeholder="输入关键事件、财务影响或供应链传导逻辑..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-subtle" id="cancelComposerBtn">取消</button>
+        <button type="submit" class="btn-primary">保存并发布到资讯流</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Scripts (standard script order works both via file:// and http://) -->
+  <script src="js/data-upstream.js"></script>
+  <script src="js/data-midstream.js"></script>
+  <script src="js/data-downstream.js"></script>
+  <script src="js/data-intel.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/chain-graph.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

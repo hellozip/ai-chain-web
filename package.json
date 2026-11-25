@@ -1,0 +1,13 @@
+{
+  "name": "ai-chain-web",
+  "version": "1.1.0",
+  "description": "Global AI Supply-Chain Interactive Research Terminal with Real-Time Stock Quotes and Live RSS Intelligence",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}
